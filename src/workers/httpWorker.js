@@ -1,11 +1,14 @@
-// src/workers/requestWorker.js
+// src/workers/httpWorker.js
 self.onmessage = async function(e) {
-  const { ip, port, username, password } = e.data;
+  console.log(`[Worker(${self.type}) id ${self.id}] Получено сообщение:`, e.data);
+  const { ip, port, username, password } = e.data.payload;
 
   try {
     const protocol = ip.startsWith('http') ? '' : 'https://';
     // const url = `${protocol}${ip}:${port}`;
     const url = `${protocol}${ip}`;
+
+    console.log(`[Worker(${self.type}) id ${self.id}] Выполняем запрос:`, url); // ← логируем URL
 
     const response = await fetch(url, {
       method: 'GET',
@@ -23,6 +26,7 @@ self.onmessage = async function(e) {
       meta: { ip, port }
     });
   } catch (error) {
+    console.error(`[Worker(${self.type}) id ${self.id}] Ошибка выполнения:`, error.message); // ← обязательно!
     self.postMessage({
       status: 'error',
       error: error.message,

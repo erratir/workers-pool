@@ -1,3 +1,4 @@
+<!-- src/pages/IndexPage.vue-->
 <template>
   <q-page class="flex flex-center column q-pa-md">
     <q-btn label="Отправить запрос" @click="sendRequest" color="primary" :loading="loading" />
@@ -12,23 +13,24 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue';
 import { useWorkerStore } from 'src/stores/workerStore';
 
 const workerStore = useWorkerStore();
 const loading = ref(false);
 const results = ref([]);
 
-
-// Подписываемся на обновления результатов
+// Подписываемся на обновления через watcher
 workerStore.$subscribe((mutation, state) => {
-  results.value = [...state.results];
+  // Предположим, что вы хотите хранить результаты в store
+  if (state.results) {
+    results.value = [...state.results];
+  }
 });
 
 function sendRequest() {
   loading.value = true;
-  console.log('Отправляем задачу во воркер');
-
+  console.log('Отправляем задачу в воркер');
 
   const task = {
     ip: "jsonplaceholder.typicode.com/todos/1",
@@ -37,17 +39,13 @@ function sendRequest() {
     password: "admin111"
   };
 
-  workerStore.sendTask(task);
-
+  workerStore.sendHttpTask(task);
   loading.value = false;
 }
 
 onMounted(() => {
-  if (!workerStore.workerPool.length) {
-    workerStore.initWorkerPool();
-  }
+  workerStore.initPools();
 });
-
 </script>
 
 <style scoped>
