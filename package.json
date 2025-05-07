@@ -1,5 +1,5 @@
 {
-  "name": "webworker1",
+  "name": "workers-pool",
   "version": "0.0.1",
   "description": "A Quasar Project",
   "productName": " ",

@@ -40,14 +40,54 @@
    npm install
    ```
 
+Пункты 3-7 не обязательны и требуются для компиляции кода RUST.
+В проект добавлен уже скомпилированный wasm модуль.
+
 3. Установите Rust и wasm-pack (если еще не установлены):
    ```bash
    curl https://sh.rustup.rs -sSf | sh
    rustup target add wasm32-unknown-unknown
    cargo install wasm-pack
-   ```
+    ```
 
-4. Скомпилируйте WebAssembly-модуль:
+4. Создайте Rust Library
+    ```bash
+    cargo new factorial-wasm --lib
+    cd factorial-wasm
+    ```
+5. Обновите Cargo.toml, включив в него зависимости для обработки больших чисел.
+    ```toml
+   [package]
+   name = "factorial-wasm"
+   version = "0.1.0"
+   edition = "2021"
+
+   [lib]
+   crate-type = ["cdylib"]
+   
+   [dependencies]
+   wasm-bindgen = "0.2"
+   num-bigint = "0.4"
+   num-traits = "0.2"
+   ```
+6. Напишите код Rust в src/lib.rs для вычисления факториала и возврата его в виде строки (поскольку JavaScript испытывает трудности с обработкой больших целых чисел):
+    ```rust
+    // factorial-wasm/src/lib.rs
+    use num_bigint::BigUint;
+    use num_traits::One;
+    use wasm_bindgen::prelude::*;
+    
+    #[wasm_bindgen]
+    pub fn factorial(n: u32) -> String {
+        let mut result = BigUint::one();
+        for i in 1..=n {
+            result *= BigUint::from(i);
+        }
+        result.to_string()
+    }
+    ```
+
+5. Скомпилируйте WebAssembly-модуль:
    ```bash
    cd factorial-wasm
    wasm-pack build --target web
