@@ -1,8 +1,14 @@
-self.onmessage = function(e) {
+import init, { factorial } from './wasm/factorial_wasm.js';
+
+self.onmessage = async function(e) {
   const { id, type, payload } = e.data;
-  console.log(`[Worker(compute)] Получено сообщение #${id}`);
+  console.log(`[Worker(wasmCompute)] Received message #${id}`);
 
   try {
+    // Initialize the WASM module
+    await init();
+
+    // Measure execution time
     const startTime = performance.now();
     const result = factorial(payload.number);
     const endTime = performance.now();
@@ -13,7 +19,7 @@ self.onmessage = function(e) {
       meta: {
         type,
         id,
-        time: endTime - startTime // Include execution time
+        time: endTime - startTime // Include execution time for comparison
       }
     });
   } catch (error) {
@@ -24,12 +30,3 @@ self.onmessage = function(e) {
     });
   }
 };
-
-function factorial(n) {
-  if (n < 0) throw new Error('Factorial of negative number is undefined');
-  let res = BigInt(1);
-  for (let i = 2; i <= n; i++) {
-    res *= BigInt(i);
-  }
-  return res.toString();
-}
