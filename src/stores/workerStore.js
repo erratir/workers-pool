@@ -72,6 +72,15 @@ export const useWorkerStore = defineStore('worker', {
       }
     },
 
+    clearResults(type) {
+      // this.results = this.results.filter(r => r.meta.type !== type);
+      if (type === 'http') {
+        this.httpResults = []
+      } else if (type === 'compute') {
+        this.computeResults = []
+      }
+    },
+
     terminateAllWorkers() {
       this.manager.terminateAll();
     },
