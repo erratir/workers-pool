@@ -3,9 +3,10 @@
 export class WorkerPoolManager {
   constructor(store) {
     this.store = store; // ← принимаем store
-    this.pools = { http: [], data: [] };
-    this.taskQueues = { http: [], data: [] };
-    this.maxWorkersPerType = { http: 3, data: 2 };
+    this.pools = { http: [], data: [], compute: [] };
+    this.taskQueues = { http: [], data: [], compute: [] };
+    this.maxWorkersPerType = { http: 3, data: 2, compute: 2 };
+    // navigator.hardwareConcurrency — показывает доступное число логических ядер.  Можно что-то типа ... Math.min(navigator.hardwareConcurrency || 3, 6)
   }
 
   initPool(type, WorkerClass) {
@@ -16,7 +17,8 @@ export class WorkerPoolManager {
       console.log(`[Worker(${type}) id ${worker.id}] Создан`);
 
       worker.onmessage = (e) => {
-        console.log(`[Worker(${type}) id ${worker.id}] Ответ получен:`, e.data);
+        const workerRef = pool.find(w => w.worker === e.target);
+        console.log(`[Worker(${type}) id ${workerRef.id}] Ответ получен:`, e.data);
         this.handleWorkerMessage(type, e);
       };
 
@@ -25,7 +27,7 @@ export class WorkerPoolManager {
         this.handleWorkerError(type, err);
       };
 
-      pool.push({ worker, busy: false }); // ✅ Храним вместе со статусом
+      pool.push({ worker, busy: false, id: worker.id });
     }
   }
 
@@ -40,19 +42,22 @@ export class WorkerPoolManager {
 
     const pool = this.pools[type];
     const freeWorker = pool.find(w => !w.busy);
-
     if (!freeWorker) return;
 
     const task = queue.shift();
     freeWorker.busy = true;
 
     try {
-      // Гарантируем передачу plain object
-      const payload = JSON.parse(JSON.stringify(task.payload));
-      freeWorker.worker.postMessage({ ...task, payload });
+      // Передаем не только payload, но и метаданные
+      freeWorker.worker.postMessage({
+        id: task.id,
+        type: task.type,
+        payload: JSON.parse(JSON.stringify(task.payload)) // безопасная передача
+      });
+
       console.log(`[Worker manager] Отправлена задача #${task.id} (тип задачи: ${type}) воркеру с id ${freeWorker.worker.id}`);
     } catch (error) {
-      console.error('Ошибка при сериализация данных:', error);
+      console.error('Ошибка при сериализации данных:', error);
     }
   }
 
@@ -63,7 +68,7 @@ export class WorkerPoolManager {
     const result = event.data;
     console.log(`[Worker manager] Получен ответ от ${type}:`, result);
 
-    this.store.addResult(result); // ← обновляем store
+    this.store.addResult(result);
     this.processQueue(type);
   }
 
