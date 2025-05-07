@@ -2,7 +2,7 @@
 
 export class WorkerPoolManager {
   constructor(store) {
-    this.store = store; // ← принимаем store
+    this.store = store;
     this.pools = { http: [], data: [], compute: [] };
     this.taskQueues = { http: [], data: [], compute: [] };
     this.maxWorkersPerType = { http: 3, data: 2, compute: 2 };

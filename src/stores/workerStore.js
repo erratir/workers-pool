@@ -1,5 +1,5 @@
 // src/stores/workerStore.js
-import { acceptHMRUpdate, defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore } from 'pinia';
 import { WorkerPoolManager } from 'src/workers/workerManager.js';
 import HttpWorker from 'src/workers/httpWorker.js?worker';
 import ComputeWorker from 'src/workers/computeWorker.js?worker';
@@ -7,15 +7,35 @@ import ComputeWorker from 'src/workers/computeWorker.js?worker';
 export const useWorkerStore = defineStore('worker', {
   state: () => ({
     manager: new WorkerPoolManager(),
-    results: [], // поле для хранения результатов
+    httpResults: [],
+    computeResults: [],
   }),
+
+  getters: {
+    httpWorkerStats() {
+      return {
+        total: this.manager.pools.http.length,
+        busy: this.manager.pools.http.filter(w => w.busy).length,
+        free: this.manager.pools.http.length - this.manager.pools.http.filter(w => w.busy).length,
+        activeTasks: this.manager.taskQueues.http.length,
+      };
+    },
+    computeWorkerStats() {
+      return {
+        total: this.manager.pools.compute.length,
+        busy: this.manager.pools.compute.filter(w => w.busy).length,
+        free: this.manager.pools.compute.length - this.manager.pools.compute.filter(w => w.busy).length,
+        activeTasks: this.manager.taskQueues.compute.length,
+      };
+    },
+  },
 
   actions: {
     initPools() {
       if (this.manager.pools.http.length === 0 && this.manager.pools.compute.length === 0) {
-        this.manager = new WorkerPoolManager(this); // ← передаем store
+        this.manager = new WorkerPoolManager(this);
         this.manager.initPool('http', HttpWorker);
-        this.manager.initPool('compute', ComputeWorker)
+        this.manager.initPool('compute', ComputeWorker);
       }
     },
 
@@ -24,7 +44,7 @@ export const useWorkerStore = defineStore('worker', {
         this.manager.addTask({
           id: Date.now().toString(),
           type: 'compute',
-          payload:  { number }, // ✅ Теперь правильно
+          payload: { number },
         });
       } catch (error) {
         console.error('Ошибка при добавлении задачи:', error);
@@ -37,7 +57,7 @@ export const useWorkerStore = defineStore('worker', {
         this.manager.addTask({
           id: Date.now().toString(),
           type: 'http',
-          payload: plainTask, // ✅ Теперь правильно
+          payload: plainTask,
         });
       } catch (error) {
         console.error('Ошибка при добавлении задачи:', error);
@@ -45,7 +65,11 @@ export const useWorkerStore = defineStore('worker', {
     },
 
     addResult(result) {
-      this.results.push(result); // ← метод для добавления результата
+      if (result.meta.type === 'http') {
+        this.httpResults.push(result);
+      } else if (result.meta.type === 'compute') {
+        this.computeResults.push(result);
+      }
     },
 
     terminateAllWorkers() {
@@ -55,5 +79,5 @@ export const useWorkerStore = defineStore('worker', {
 });
 
 if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useWorkerStore, import.meta.hot))
+  import.meta.hot.accept(acceptHMRUpdate(useWorkerStore, import.meta.hot));
 }

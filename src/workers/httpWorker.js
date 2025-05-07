@@ -10,14 +10,14 @@ self.onmessage = async function(e) {
     selfType = message.type;
   }
 
-  console.log(`[Worker(${selfType}) Получено сообщение:`, message);
+  console.log(`[Worker(${selfType})] Получено сообщение:`, message);
 
   const { ip, port, username, password } = message.payload;
 
   try {
     const protocol = ip.startsWith('http') ? '' : 'https://';
     const url = `${protocol}${ip}`;
-    console.log(`[Worker(${selfType}) Выполняем запрос:`, url);
+    console.log(`[Worker(${selfType})] Выполняем запрос:`, url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -26,6 +26,11 @@ self.onmessage = async function(e) {
         'Content-Type': 'application/json'
       }
     });
+
+    // Проверяем, успешен ли ответ
+    if (!response.ok) {
+      throw new Error(`HTTP ошибка: ${response.status} ${response.statusText} для URL ${url}`);
+    }
 
     const data = await response.json();
 
@@ -40,16 +45,7 @@ self.onmessage = async function(e) {
     self.postMessage({
       status: 'error',
       error: error.message,
-      meta: { ip, port, type: selfType, id: message.id  }
+      meta: { ip, port, type: selfType, id: message.id }
     });
   }
 };
-
-
-// self.onmessage = function(e) {
-//   console.log('Получено:', e.data);
-//
-//   setTimeout(() => {
-//     self.postMessage({ status: 'success', data: { message: 'Test OK' } });
-//   }, 500);
-// };
