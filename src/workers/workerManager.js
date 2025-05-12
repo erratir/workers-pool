@@ -1,37 +1,45 @@
-// src/workers/workerManager.js — базовый класс управления воркерами
-
 export class WorkerPoolManager {
   constructor(store) {
     this.store = store;
-    this.pools = { http: [], data: [], compute: [], wasmCompute: [] };
-    this.taskQueues = { http: [], data: [], compute: [], wasmCompute: [] };
-    this.maxWorkersPerType = { http: 3, data: 2, compute: 2, wasmCompute: 2 };
+    this.pools = { http: [], compute: [] };
+    this.taskQueues = { http: [], compute: [] };
+    this.maxWorkersPerType = { http: 3, compute: 2 };
   }
 
-  initPool(type, WorkerClass) {
+  initPool(type, WorkerClass, workerType) {
     const pool = this.pools[type];
-    for (let i = 0; i < this.maxWorkersPerType[type]; i++) {
+    const maxWorkers = this.maxWorkersPerType[type];
+    const startIndex = pool.length;
+
+    for (let i = startIndex; i < startIndex + maxWorkers; i++) {
       const worker = new WorkerClass();
-      worker.id = i;
-      console.log(`[Worker(${type}) id ${worker.id}] Created`);
+      worker.id = `${workerType}-${i}`;
+      console.log(`[Worker(${type}:${workerType}) id ${worker.id}] Created`);
 
       worker.onmessage = (e) => {
         const workerRef = pool.find(w => w.worker === e.target);
-        console.log(`[Worker(${type}) id ${workerRef.id}] Response received:`, e.data);
+        console.log(`[Worker(${type}:${workerType}) id ${workerRef.id}] Response received:`, e.data);
         this.handleWorkerMessage(type, e);
       };
 
       worker.onerror = (err) => {
-        console.error(`[Worker(${type}) id ${worker.id}] Error:`, err.message);
+        console.error(`[Worker(${type}:${workerType}) id ${worker.id}] Error:`, err.message);
         this.handleWorkerError(type, err);
       };
 
-      pool.push({ worker, busy: false, id: worker.id });
+      pool.push({ worker, busy: false, id: worker.id, workerType });
     }
   }
 
   addTask(task) {
-    this.taskQueues[task.type].push(task);
+    if (task.workerType === 'all') {
+      const workerTypes = task.type === 'compute' ? ['js', 'rust'] : ['http'];
+      workerTypes.forEach(workerType => {
+        this.taskQueues[task.type].push({ ...task, workerType, id: `${task.id}-${workerType}` });
+      });
+    } else {
+      this.taskQueues[task.type].push(task);
+    }
     this.processQueue(task.type);
   }
 
@@ -40,19 +48,22 @@ export class WorkerPoolManager {
     if (queue.length === 0) return;
 
     const pool = this.pools[type];
-    const freeWorker = pool.find(w => !w.busy);
+    const task = queue[0];
+    const freeWorker = pool.find(w => !w.busy && (task.workerType === 'all' || w.workerType === task.workerType));
+
     if (!freeWorker) return;
 
-    const task = queue.shift();
+    queue.shift();
     freeWorker.busy = true;
 
     try {
       freeWorker.worker.postMessage({
         id: task.id,
         type: task.type,
-        payload: JSON.parse(JSON.stringify(task.payload))
+        taskName: task.taskName,
+        payload: JSON.parse(JSON.stringify(task.payload)),
       });
-      console.log(`[Worker manager] Task #${task.id} (type: ${type}) sent to worker id ${freeWorker.worker.id}`);
+      console.log(`[Worker manager] Task #${task.id} (type: ${type}, workerType: ${freeWorker.workerType}) sent to worker id ${freeWorker.id}`);
     } catch (error) {
       console.error('Error serializing data:', error);
     }
@@ -74,8 +85,8 @@ export class WorkerPoolManager {
   }
 
   terminateAll() {
-    Object.values(this.pools).flat().forEach(w => w.terminate());
-    this.pools = { http: [], data: [], compute: [], wasmCompute: [] };
-    this.taskQueues = { http: [], data: [], compute: [], wasmCompute: [] };
+    Object.values(this.pools).flat().forEach(w => w.worker.terminate());
+    this.pools = { http: [], compute: [] };
+    this.taskQueues = { http: [], compute: [] };
   }
 }

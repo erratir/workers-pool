@@ -1,23 +1,21 @@
-// src/workers/httpWorker.js
-
 let selfType = null;
 
 self.onmessage = async function(e) {
   const message = e.data;
 
-  // Устанавливаем метаданные при первом сообщении
   if (message.id && message.type && message.payload) {
     selfType = message.type;
   }
 
-  console.log(`[Worker(${selfType})] Получено сообщение:`, message);
+  console.log(`[Worker(${selfType}:http)] Получено сообщение:`, message);
 
   const { ip, port, username, password, method = 'GET', body = null } = message.payload;
+  const { id, taskName } = message;
 
   try {
     const protocol = ip.startsWith('http') ? '' : 'https://';
     const url = `${protocol}${ip}`;
-    console.log(`[Worker(${selfType})] Выполняем запрос:`, url);
+    console.log(`[Worker(${selfType}:http)] Выполняем запрос:`, url);
 
     const headers = {
       'Authorization': 'Basic ' + btoa(`${username}:${password}`),
@@ -35,7 +33,6 @@ self.onmessage = async function(e) {
 
     const response = await fetch(url, options);
 
-    // Проверяем, успешен ли ответ
     if (!response.ok) {
       throw new Error(`HTTP ошибка: ${response.status} ${response.statusText} для URL ${url}`);
     }
@@ -45,15 +42,15 @@ self.onmessage = async function(e) {
     self.postMessage({
       status: 'success',
       data,
-      meta: { ip, port, type: selfType, id: message.id, method } // Добавляем method в meta
+      meta: { ip, port, type: selfType, id, method, taskName, workerType: 'http' }
     });
 
   } catch (error) {
-    console.error(`[Worker(${selfType})] Ошибка выполнения:`, error.message);
+    console.error(`[Worker(${selfType}:http)] Ошибка выполнения:`, error.message);
     self.postMessage({
       status: 'error',
       error: error.message,
-      meta: { ip, port, type: selfType, id: message.id, method } // Добавляем method в meta
+      meta: { ip, port, type: selfType, id, method, taskName, workerType: 'http' }
     });
   }
 };

@@ -135,7 +135,7 @@
 - `src/workers/`:
     - `httpWorker.js`: Web Worker для HTTP-запросов.
     - `computeWorker.js`: Web Worker для вычислений факториала на JavaScript.
-    - `wasmComputeWorker.js`: Web Worker для вычислений факториала с использованием WebAssembly.
+    - `rustComputeWorker.js`: Web Worker для вычислений факториала с использованием WebAssembly.
     - `workerManager.js`: Класс для управления пулом воркеров и очередями задач.
     - `wasm/`: Папка с скомпилированными файлами WebAssembly (`factorial_wasm.js`, `factorial_wasm_bg.wasm`).
 - `factorial-wasm/`: Отдельный Rust-проект для компиляции WebAssembly-модуля.

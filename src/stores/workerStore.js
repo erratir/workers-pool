@@ -1,16 +1,14 @@
-// src/stores/workerStore.js
 import { acceptHMRUpdate, defineStore } from 'pinia';
 import { WorkerPoolManager } from 'src/workers/workerManager.js';
 import HttpWorker from 'src/workers/httpWorker.js?worker';
 import ComputeWorker from 'src/workers/computeWorker.js?worker';
-import WasmComputeWorker from 'src/workers/wasmComputeWorker.js?worker';
+import RustComputeWorker from 'src/workers/rustComputeWorker.js?worker';
 
 export const useWorkerStore = defineStore('worker', {
   state: () => ({
     manager: new WorkerPoolManager(),
     httpResults: [],
     computeResults: [],
-    wasmComputeResults: [],
   }),
 
   getters: {
@@ -30,31 +28,25 @@ export const useWorkerStore = defineStore('worker', {
         activeTasks: this.manager.taskQueues.compute.length,
       };
     },
-    wasmComputeWorkerStats() {
-      return {
-        total: this.manager.pools.wasmCompute.length,
-        busy: this.manager.pools.wasmCompute.filter(w => w.busy).length,
-        free: this.manager.pools.wasmCompute.length - this.manager.pools.wasmCompute.filter(w => w.busy).length,
-        activeTasks: this.manager.taskQueues.wasmCompute.length,
-      };
-    },
   },
 
   actions: {
     initPools() {
       if (this.manager.pools.http.length === 0 && this.manager.pools.compute.length === 0) {
         this.manager = new WorkerPoolManager(this);
-        this.manager.initPool('http', HttpWorker);
-        this.manager.initPool('compute', ComputeWorker);
-        this.manager.initPool('wasmCompute', WasmComputeWorker);
+        this.manager.initPool('http', HttpWorker, 'http');
+        this.manager.initPool('compute', ComputeWorker, 'js');
+        this.manager.initPool('compute', RustComputeWorker, 'rust');
       }
     },
 
-    sendComputeTask(number) {
+    sendComputeTask(number, workerType, taskName) {
       try {
         this.manager.addTask({
           id: Date.now().toString(),
           type: 'compute',
+          workerType: workerType,
+          taskName: taskName,
           payload: { number },
         });
       } catch (error) {
@@ -62,25 +54,15 @@ export const useWorkerStore = defineStore('worker', {
       }
     },
 
-    sendHttpTask(task) {
+    sendHttpTask(task, workerType, taskName) {
       const plainTask = { ...task };
       try {
         this.manager.addTask({
           id: Date.now().toString(),
           type: 'http',
+          workerType: workerType,
+          taskName: taskName,
           payload: plainTask,
-        });
-      } catch (error) {
-        console.error('Error adding task:', error);
-      }
-    },
-
-    sendWasmComputeTask(number) {
-      try {
-        this.manager.addTask({
-          id: Date.now().toString(),
-          type: 'wasmCompute',
-          payload: { number },
         });
       } catch (error) {
         console.error('Error adding task:', error);
@@ -92,8 +74,6 @@ export const useWorkerStore = defineStore('worker', {
         this.httpResults.push(result);
       } else if (result.meta.type === 'compute') {
         this.computeResults.push(result);
-      } else if (result.meta.type === 'wasmCompute') {
-        this.wasmComputeResults.push(result);
       }
     },
 
@@ -102,8 +82,6 @@ export const useWorkerStore = defineStore('worker', {
         this.httpResults = [];
       } else if (type === 'compute') {
         this.computeResults = [];
-      } else if (type === 'wasmCompute') {
-        this.wasmComputeResults = [];
       }
     },
 

@@ -5,8 +5,7 @@
       <div class="col-1">
         <q-tabs v-model="activeTab" vertical dense class="text-teal" indicator-color="teal">
           <q-tab name="http" label="HTTP" />
-          <q-tab name="compute" label="Compute (JS)" />
-          <q-tab name="wasmCompute" label="WASM Compute (RUST)" />
+          <q-tab name="compute" label="Compute" />
         </q-tabs>
       </div>
       <div class="col-11">
@@ -21,8 +20,9 @@
               <q-card-section>
                 <div class="row q-gutter-lg">
                   <q-select v-model="httpMethod" :options="['GET', 'POST']" label="Метод" dense class="col-1" />
-                  <q-input v-model="ip" label="IP или URL" class="col-8" />
+                  <q-input v-model="ip" label="IP или URL" class="col-7" />
                   <q-input v-model.number="port" label="Порт" type="number" class="col-2" />
+                  <q-select v-model="httpWorkerType" :options="['http', 'all']" label="Тип воркера" dense class="col-2" />
                 </div>
                 <div class="row q-gutter-lg">
                   <q-input v-model="username" label="Имя пользователя" class="col-5" />
@@ -61,12 +61,13 @@
           <q-tab-panel name="compute">
             <q-card class="card-style">
               <q-card-section class="row items-center q-pa-none">
-                <div class="text-h6">Compute-воркер (JS)</div>
+                <div class="text-h6">Compute-воркер</div>
                 <q-icon name="info" color="secondary" size="sm" class="q-ml-sm cursor-pointer" @click="showComputeDetails = true" />
               </q-card-section>
               <q-card-section>
                 <div class="row q-gutter-md">
-                  <q-input v-model.number="number" label="Введите число для расчета факториала" class="col-12" />
+                  <q-input v-model.number="number" label="Введите число для расчета факториала" class="col-9" />
+                  <q-select v-model="computeWorkerType" :options="['js', 'rust', 'all']" label="Тип воркера" dense class="col-3" />
                 </div>
               </q-card-section>
               <q-card-section>
@@ -91,43 +92,6 @@
                 </div>
               </div>
               <div v-else class="no-results">Нет выполненных вычислений.</div>
-            </div>
-          </q-tab-panel>
-
-          <!-- WASM Compute Tab -->
-          <q-tab-panel name="wasmCompute">
-            <q-card class="card-style">
-              <q-card-section class="row items-center q-pa-none">
-                <div class="text-h6">WASM Compute-воркер (Rust)</div>
-                <q-icon name="info" color="accent" size="sm" class="q-ml-sm cursor-pointer" @click="showWasmComputeDetails = true" />
-              </q-card-section>
-              <q-card-section>
-                <div class="row q-gutter-md">
-                  <q-input v-model.number="number" label="Введите число для расчета факториала" class="col-12" />
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <q-btn label="Выполнить вычисление (WASM)" @click="runWasmCompute" color="accent" :loading="loading" />
-                <div class="stats">
-                  Задачи в очереди: {{ workerStore.wasmComputeWorkerStats.activeTasks }} / Всего воркеров: {{ workerStore.wasmComputeWorkerStats.total }} / Свободно: {{ workerStore.wasmComputeWorkerStats.free }}
-                </div>
-              </q-card-section>
-            </q-card>
-            <div class="results-header">
-              <h5>Результаты WASM вычислений:</h5>
-              <q-btn v-if="wasmComputeResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('wasmCompute')" />
-            </div>
-            <div class="result-scrollable">
-              <div v-if="wasmComputeResults.length" class="result-list">
-                <div v-for="(result, i) in wasmComputeResults" :key="i" class="result-item">
-                  <q-card bordered class="result-card" :class="{ 'error-card': result.status === 'error' }">
-                    <q-card-section>
-                      <pre>{{ JSON.stringify(result, null, 2) }}</pre>
-                    </q-card-section>
-                  </q-card>
-                </div>
-              </div>
-              <div v-else class="no-results">Нет выполненных WASM вычислений.</div>
             </div>
           </q-tab-panel>
         </q-tab-panels>
@@ -166,22 +130,6 @@
         </q-card-section>
       </q-card>
     </q-dialog>
-
-    <q-dialog v-model="showWasmComputeDetails">
-      <q-card>
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Подробности WASM Compute-воркера</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-        <q-card-section>
-          <p>Всего воркеров: {{ workerStore.wasmComputeWorkerStats.total }}</p>
-          <p>Свободных воркеров: {{ workerStore.wasmComputeWorkerStats.free }}</p>
-          <p>Занятых воркеров: {{ workerStore.wasmComputeWorkerStats.busy }}</p>
-          <p>Задачи в очереди: {{ workerStore.wasmComputeWorkerStats.activeTasks }}</p>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
@@ -199,26 +147,19 @@ const password = ref('admin111');
 const activeTab = ref('http');
 const showHttpDetails = ref(false);
 const showComputeDetails = ref(false);
-const showWasmComputeDetails = ref(false);
 const httpMethod = ref('GET');
 const postBody = ref('');
+const computeWorkerType = ref('js');
+const httpWorkerType = ref('http');
 
 const httpResults = computed(() => workerStore.httpResults);
 const computeResults = computed(() => workerStore.computeResults);
-const wasmComputeResults = computed(() => workerStore.wasmComputeResults);
 
 function runCompute() {
   loading.value = true;
-  workerStore.sendComputeTask(number.value);
+  workerStore.sendComputeTask(number.value, computeWorkerType.value, 'factorial');
   loading.value = false;
   activeTab.value = 'compute';
-}
-
-function runWasmCompute() {
-  loading.value = true;
-  workerStore.sendWasmComputeTask(number.value);
-  loading.value = false;
-  activeTab.value = 'wasmCompute';
 }
 
 function sendRequest() {
@@ -237,7 +178,7 @@ function sendRequest() {
     body: httpMethod.value === 'POST' ? (postBody.value ? JSON.parse(postBody.value) : null) : null,
   };
   try {
-    workerStore.sendHttpTask(task);
+    workerStore.sendHttpTask(task, httpWorkerType.value, 'httpRequest');
   } catch (error) {
     alert('Ошибка в теле POST-запроса: ' + error.message);
     loading.value = false;

@@ -1,6 +1,6 @@
 self.onmessage = function(e) {
-  const { id, type, payload } = e.data;
-  console.log(`[Worker(compute)] Получено сообщение #${id}`);
+  const { id, type, taskName, payload } = e.data;
+  console.log(`[Worker(compute:js)] Получено сообщение #${id}`);
 
   try {
     const startTime = performance.now();
@@ -13,14 +13,16 @@ self.onmessage = function(e) {
       meta: {
         type,
         id,
-        time: endTime - startTime // Include execution time
+        taskName,
+        workerType: 'js',
+        time: endTime - startTime
       }
     });
   } catch (error) {
     self.postMessage({
       status: 'error',
       error: error.message,
-      meta: { type, id }
+      meta: { type, id, taskName, workerType: 'js' }
     });
   }
 };
