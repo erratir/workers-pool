@@ -1,11 +1,15 @@
 <!-- src/pages/IndexPage.vue -->
 <template>
   <q-page class="q-pa-md">
+    <div class="row q-mb-md">
+      <q-btn label="Настройки воркеров" @click="showSettings = true" color="grey" />
+    </div>
     <div class="row">
       <div class="col-1">
         <q-tabs v-model="activeTab" vertical dense class="text-teal" indicator-color="teal">
           <q-tab name="http" label="HTTP" />
           <q-tab name="compute" label="Compute" />
+          <q-tab name="dashboard" label="Dashboard" />
         </q-tabs>
       </div>
       <div class="col-11">
@@ -41,7 +45,10 @@
             </q-card>
             <div class="results-header">
               <h5>Результаты HTTP-запросов:</h5>
-              <q-btn v-if="httpResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('http')" />
+              <div>
+                <q-select v-model="httpFilter" :options="['all', 'http']" label="Фильтр по воркеру" dense style="width: 150px" />
+                <q-btn v-if="httpResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('http')" />
+              </div>
             </div>
             <div class="result-scrollable">
               <div v-if="httpResults.length" class="result-list">
@@ -66,7 +73,8 @@
               </q-card-section>
               <q-card-section>
                 <div class="row q-gutter-md">
-                  <q-input v-model.number="number" label="Введите число для расчета факториала" class="col-9" />
+                  <q-input v-model.number="number" label="Введите число" class="col-6" />
+                  <q-select v-model="computeTaskType" :options="['factorial', 'fibonacci']" label="Тип задачи" dense class="col-3" />
                   <q-select v-model="computeWorkerType" :options="['js', 'rust', 'all']" label="Тип воркера" dense class="col-3" />
                 </div>
               </q-card-section>
@@ -79,7 +87,10 @@
             </q-card>
             <div class="results-header">
               <h5>Результаты вычислений:</h5>
-              <q-btn v-if="computeResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('compute')" />
+              <div>
+                <q-select v-model="computeFilter" :options="['all', 'js', 'rust']" label="Фильтр по воркеру" dense style="width: 150px" />
+                <q-btn v-if="computeResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('compute')" />
+              </div>
             </div>
             <div class="result-scrollable">
               <div v-if="computeResults.length" class="result-list">
@@ -93,6 +104,22 @@
               </div>
               <div v-else class="no-results">Нет выполненных вычислений.</div>
             </div>
+          </q-tab-panel>
+
+          <!-- Dashboard Tab -->
+          <q-tab-panel name="dashboard">
+            <q-card class="card-style">
+              <q-card-section>
+                <div class="text-h6">Метрики производительности</div>
+              </q-card-section>
+              <q-card-section>
+                <p>Среднее время выполнения (JS, факториал): {{ workerStore.computeMetrics.js.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.factorial.count }} задач)</p>
+                <p>Среднее время выполнения (JS, Фибоначчи): {{ workerStore.computeMetrics.js.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.fibonacci.count }} задач)</p>
+                <p>Среднее время выполнения (Rust, факториал): {{ workerStore.computeMetrics.rust.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.factorial.count }} задач)</p>
+                <p>Среднее время выполнения (Rust, Фибоначчи): {{ workerStore.computeMetrics.rust.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.fibonacci.count }} задач)</p>
+                <p>Среднее время HTTP-запросов: {{ workerStore.httpMetrics.avgTime.toFixed(2) }} мс ({{ workerStore.httpMetrics.count }} задач)</p>
+              </q-card-section>
+            </q-card>
           </q-tab-panel>
         </q-tab-panels>
       </div>
@@ -124,10 +151,28 @@
         </q-card-section>
         <q-card-section>
           <p>Всего воркеров: {{ workerStore.computeWorkerStats.total }}</p>
+          <p>Воркеров JS: {{ workerStore.computeWorkerStats.jsCount }}</p>
+          <p>Воркеров Rust: {{ workerStore.computeWorkerStats.rustCount }}</p>
           <p>Свободных воркеров: {{ workerStore.computeWorkerStats.free }}</p>
           <p>Занятых воркеров: {{ workerStore.computeWorkerStats.busy }}</p>
           <p>Задачи в очереди: {{ workerStore.computeWorkerStats.activeTasks }}</p>
         </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="showSettings">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">Настройки воркеров</div>
+        </q-card-section>
+        <q-card-section>
+          <q-input v-model.number="workerConfig.http" label="HTTP воркеры" type="number" min="1" />
+          <q-input v-model.number="workerConfig.js" label="JS Compute воркеры" type="number" min="1" />
+          <q-input v-model.number="workerConfig.rust" label="Rust Compute воркеры" type="number" min="1" />
+        </q-card-section>
+        <q-card-actions>
+          <q-btn label="Сохранить" @click="saveWorkerConfig" color="primary" v-close-popup />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -135,8 +180,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useQuasar } from 'quasar';
 import { useWorkerStore } from 'src/stores/workerStore';
 
+const $q = useQuasar();
 const workerStore = useWorkerStore();
 const loading = ref(false);
 const number = ref(123456);
@@ -147,24 +194,45 @@ const password = ref('admin111');
 const activeTab = ref('http');
 const showHttpDetails = ref(false);
 const showComputeDetails = ref(false);
+const showSettings = ref(false);
 const httpMethod = ref('GET');
 const postBody = ref('');
 const computeWorkerType = ref('js');
 const httpWorkerType = ref('http');
+const computeTaskType = ref('factorial');
+const computeFilter = ref('all');
+const httpFilter = ref('all');
+const workerConfig = ref({ http: 3, js: 2, rust: 2 });
 
-const httpResults = computed(() => workerStore.httpResults);
-const computeResults = computed(() => workerStore.computeResults);
+const httpResults = computed(() => {
+  let results = workerStore.httpResults;
+  if (httpFilter.value !== 'all') {
+    results = results.filter(result => result.meta.workerType === httpFilter.value);
+  }
+  return results.sort((a, b) => b.meta.time - a.meta.time);
+});
+
+const computeResults = computed(() => {
+  let results = workerStore.computeResults;
+  if (computeFilter.value !== 'all') {
+    results = results.filter(result => result.meta.workerType === computeFilter.value);
+  }
+  return results.sort((a, b) => b.meta.time - a.meta.time);
+});
 
 function runCompute() {
   loading.value = true;
-  workerStore.sendComputeTask(number.value, computeWorkerType.value, 'factorial');
+  workerStore.sendComputeTask(number.value, computeWorkerType.value, computeTaskType.value);
   loading.value = false;
   activeTab.value = 'compute';
 }
 
 function sendRequest() {
   if (!ip.value || !port.value || !username.value || !password.value) {
-    alert('Пожалуйста, заполните все поля для HTTP-запроса.');
+    $q.notify({
+      type: 'negative',
+      message: 'Пожалуйста, заполните все поля для HTTP-запроса.',
+    });
     return;
   }
 
@@ -180,12 +248,36 @@ function sendRequest() {
   try {
     workerStore.sendHttpTask(task, httpWorkerType.value, 'httpRequest');
   } catch (error) {
-    alert('Ошибка в теле POST-запроса: ' + error.message);
+    $q.notify({
+      type: 'negative',
+      message: `Ошибка в теле POST-запроса: ${error.message}`,
+    });
     loading.value = false;
     return;
   }
   loading.value = false;
   activeTab.value = 'http';
+}
+
+function saveWorkerConfig() {
+  const originalConfig = { ...workerConfig.value };
+  workerStore.updateWorkerConfig(workerConfig.value);
+
+  // Check if any counts were adjusted due to validation
+  const adjusted = Object.keys(originalConfig).some(
+    key => originalConfig[key] !== workerConfig.value[key]
+  );
+  if (adjusted) {
+    $q.notify({
+      type: 'warning',
+      message: 'Некоторые значения воркеров были скорректированы до минимального (1).',
+    });
+  } else {
+    $q.notify({
+      type: 'positive',
+      message: 'Конфигурация воркеров обновлена.',
+    });
+  }
 }
 
 onMounted(() => {

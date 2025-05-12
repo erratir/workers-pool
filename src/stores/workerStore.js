@@ -4,11 +4,18 @@ import HttpWorker from 'src/workers/httpWorker.js?worker';
 import ComputeWorker from 'src/workers/computeWorker.js?worker';
 import RustComputeWorker from 'src/workers/rustComputeWorker.js?worker';
 
+const workerConfig = [
+  { type: 'http', workerClass: HttpWorker, workerType: 'http', maxWorkers: 3 },
+  { type: 'compute', workerClass: ComputeWorker, workerType: 'js', maxWorkers: 2 },
+  { type: 'compute', workerClass: RustComputeWorker, workerType: 'rust', maxWorkers: 2 },
+];
+
 export const useWorkerStore = defineStore('worker', {
   state: () => ({
     manager: new WorkerPoolManager(),
     httpResults: [],
     computeResults: [],
+    workerConfig,
   }),
 
   getters: {
@@ -26,7 +33,35 @@ export const useWorkerStore = defineStore('worker', {
         busy: this.manager.pools.compute.filter(w => w.busy).length,
         free: this.manager.pools.compute.length - this.manager.pools.compute.filter(w => w.busy).length,
         activeTasks: this.manager.taskQueues.compute.length,
+        jsCount: this.manager.pools.compute.filter(w => w.workerType === 'js').length,
+        rustCount: this.manager.pools.compute.filter(w => w.workerType === 'rust').length,
       };
+    },
+    computeMetrics() {
+      const metrics = {
+        js: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
+        rust: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
+      };
+      this.computeResults.forEach(result => {
+        if (result.status === 'success') {
+          const { workerType, taskName } = result.meta;
+          metrics[workerType][taskName].avgTime =
+            (metrics[workerType][taskName].avgTime * metrics[workerType][taskName].count + result.meta.time) /
+            (metrics[workerType][taskName].count + 1);
+          metrics[workerType][taskName].count += 1;
+        }
+      });
+      return metrics;
+    },
+    httpMetrics() {
+      const metrics = { avgTime: 0, count: 0 };
+      this.httpResults.forEach(result => {
+        if (result.status === 'success' && result.meta.time) {
+          metrics.avgTime = (metrics.avgTime * metrics.count + result.meta.time) / (metrics.count + 1);
+          metrics.count += 1;
+        }
+      });
+      return metrics;
     },
   },
 
@@ -34,9 +69,9 @@ export const useWorkerStore = defineStore('worker', {
     initPools() {
       if (this.manager.pools.http.length === 0 && this.manager.pools.compute.length === 0) {
         this.manager = new WorkerPoolManager(this);
-        this.manager.initPool('http', HttpWorker, 'http');
-        this.manager.initPool('compute', ComputeWorker, 'js');
-        this.manager.initPool('compute', RustComputeWorker, 'rust');
+        this.workerConfig.forEach(({ type, workerClass, workerType, maxWorkers }) => {
+          this.manager.initPool(type, workerClass, workerType, maxWorkers);
+        });
       }
     },
 
@@ -83,6 +118,34 @@ export const useWorkerStore = defineStore('worker', {
       } else if (type === 'compute') {
         this.computeResults = [];
       }
+    },
+
+    updateWorkerConfig(config) {
+      // Validate worker counts
+      const validatedConfig = {
+        http: Math.max(1, config.http),
+        js: Math.max(1, config.js),
+        rust: Math.max(1, config.rust),
+      };
+
+      // Warn if worker counts are excessive
+      const maxRecommendedWorkers = 10;
+      Object.entries(validatedConfig).forEach(([type, count]) => {
+        if (count > maxRecommendedWorkers) {
+          console.warn(
+            `[WorkerStore] Warning: Setting ${count} workers for ${type} may impact browser performance. Consider reducing the number.`
+          );
+        }
+      });
+
+      this.manager.terminateAll();
+      this.workerConfig = [
+        { type: 'http', workerClass: HttpWorker, workerType: 'http', maxWorkers: validatedConfig.http },
+        { type: 'compute', workerClass: ComputeWorker, workerType: 'js', maxWorkers: validatedConfig.js },
+        { type: 'compute', workerClass: RustComputeWorker, workerType: 'rust', maxWorkers: validatedConfig.rust },
+      ];
+      this.manager = new WorkerPoolManager(this);
+      this.initPools();
     },
 
     terminateAllWorkers() {

@@ -4,7 +4,14 @@ self.onmessage = function(e) {
 
   try {
     const startTime = performance.now();
-    const result = factorial(payload.number);
+    let result;
+    if (taskName === 'factorial') {
+      result = factorial(payload.number);
+    } else if (taskName === 'fibonacci') {
+      result = fibonacci(payload.number);
+    } else {
+      throw new Error('Unsupported task type');
+    }
     const endTime = performance.now();
 
     self.postMessage({
@@ -34,4 +41,13 @@ function factorial(n) {
     res *= BigInt(i);
   }
   return res.toString();
+}
+
+function fibonacci(n) {
+  if (n < 0) throw new Error('Fibonacci of negative number is undefined');
+  let a = BigInt(0), b = BigInt(1);
+  for (let i = 0; i < n; i++) {
+    [a, b] = [b, a + b];
+  }
+  return a.toString();
 }

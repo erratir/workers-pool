@@ -1,4 +1,4 @@
-import init, { factorial } from './wasm/factorial_wasm.js';
+import init, { factorial, fibonacci } from './wasm/factorial_wasm.js';
 
 self.onmessage = async function(e) {
   const { id, type, taskName, payload } = e.data;
@@ -7,7 +7,14 @@ self.onmessage = async function(e) {
   try {
     await init();
     const startTime = performance.now();
-    const result = factorial(payload.number);
+    let result;
+    if (taskName === 'factorial') {
+      result = factorial(payload.number);
+    } else if (taskName === 'fibonacci') {
+      result = fibonacci(payload.number);
+    } else {
+      throw new Error('Unsupported task type');
+    }
     const endTime = performance.now();
 
     self.postMessage({

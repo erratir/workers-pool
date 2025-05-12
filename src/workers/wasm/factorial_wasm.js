@@ -34,6 +34,23 @@ export function factorial(n) {
     }
 }
 
+/**
+ * @param {number} n
+ * @returns {string}
+ */
+export function fibonacci(n) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.fibonacci(n);
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
 async function __wbg_load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
         if (typeof WebAssembly.instantiateStreaming === 'function') {
@@ -83,7 +100,7 @@ function __wbg_get_imports() {
 }
 
 function __wbg_init_memory(imports, memory) {
-  console.log(imports, memory)
+
 }
 
 function __wbg_finalize_init(instance, module) {

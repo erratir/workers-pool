@@ -3,13 +3,14 @@ export class WorkerPoolManager {
     this.store = store;
     this.pools = { http: [], compute: [] };
     this.taskQueues = { http: [], compute: [] };
-    this.maxWorkersPerType = { http: 3, compute: 2 };
+    this.maxWorkersPerType = { http: 0, compute: 0 };
   }
 
-  initPool(type, WorkerClass, workerType) {
+  initPool(type, WorkerClass, workerType, maxWorkers) {
     const pool = this.pools[type];
-    const maxWorkers = this.maxWorkersPerType[type];
     const startIndex = pool.length;
+
+    this.maxWorkersPerType[type] = (this.maxWorkersPerType[type] || 0) + maxWorkers;
 
     for (let i = startIndex; i < startIndex + maxWorkers; i++) {
       const worker = new WorkerClass();
@@ -88,5 +89,6 @@ export class WorkerPoolManager {
     Object.values(this.pools).flat().forEach(w => w.worker.terminate());
     this.pools = { http: [], compute: [] };
     this.taskQueues = { http: [], compute: [] };
+    this.maxWorkersPerType = { http: 0, compute: 0 };
   }
 }
