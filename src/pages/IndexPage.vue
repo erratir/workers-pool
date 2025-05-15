@@ -75,7 +75,7 @@
                 <div class="row q-gutter-md">
                   <q-input v-model.number="number" label="Введите число" class="col-6" />
                   <q-select v-model="computeTaskType" :options="['factorial', 'fibonacci']" label="Тип задачи" dense class="col-3" />
-                  <q-select v-model="computeWorkerType" :options="['js', 'rust', 'all']" label="Тип воркера" dense class="col-3" />
+                  <q-select v-model="computeWorkerType" :options="['js', 'rust', 'go', 'tinygo', 'all']" label="Тип воркера" dense class="col-3" />
                 </div>
               </q-card-section>
               <q-card-section>
@@ -88,7 +88,7 @@
             <div class="results-header">
               <h5>Результаты вычислений:</h5>
               <div>
-                <q-select v-model="computeFilter" :options="['all', 'js', 'rust']" label="Фильтр по воркеру" dense style="width: 150px" />
+                <q-select v-model="computeFilter" :options="['all', 'js', 'rust', 'go', 'tinygo']" label="Фильтр по воркеру" dense style="width: 150px" />
                 <q-btn v-if="computeResults.length" label="Очистить" color="negative" size="sm" @click="workerStore.clearResults('compute')" />
               </div>
             </div>
@@ -113,10 +113,20 @@
                 <div class="text-h6">Метрики производительности</div>
               </q-card-section>
               <q-card-section>
-                <p>Среднее время выполнения (JS, факториал): {{ workerStore.computeMetrics.js.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.factorial.count }} задач)</p>
-                <p>Среднее время выполнения (JS, Фибоначчи): {{ workerStore.computeMetrics.js.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.fibonacci.count }} задач)</p>
-                <p>Среднее время выполнения (Rust, факториал): {{ workerStore.computeMetrics.rust.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.factorial.count }} задач)</p>
-                <p>Среднее время выполнения (Rust, Фибоначчи): {{ workerStore.computeMetrics.rust.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.fibonacci.count }} задач)</p>
+                <p>Среднее время выполнения (факториал):</p>
+                <p>JS: {{ workerStore.computeMetrics.js.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.factorial.count }} задач)</p>
+                <p>Rust: {{ workerStore.computeMetrics.rust.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.factorial.count }} задач)</p>
+                <p>Go: {{ workerStore.computeMetrics.go.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.go.factorial.count }} задач)</p>
+                <p>TinyGo: {{ workerStore.computeMetrics.tinygo.factorial.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.tinygo.factorial.count }} задач)</p>
+              </q-card-section>
+              <q-card-section>
+                <p>Среднее время выполнения (фибоначи):</p>
+                <p>JS: {{ workerStore.computeMetrics.js.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.js.fibonacci.count }} задач)</p>
+                <p>Rust: {{ workerStore.computeMetrics.rust.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.rust.fibonacci.count }} задач)</p>
+                <p>Go: {{ workerStore.computeMetrics.go.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.go.fibonacci.count }} задач)</p>
+                <p>TinyGo: {{ workerStore.computeMetrics.tinygo.fibonacci.avgTime.toFixed(2) }} мс ({{ workerStore.computeMetrics.tinygo.fibonacci.count }} задач)</p>
+              </q-card-section>
+              <q-card-section>
                 <p>Среднее время HTTP-запросов: {{ workerStore.httpMetrics.avgTime.toFixed(2) }} мс ({{ workerStore.httpMetrics.count }} задач)</p>
               </q-card-section>
             </q-card>
@@ -153,6 +163,8 @@
           <p>Всего воркеров: {{ workerStore.computeWorkerStats.total }}</p>
           <p>Воркеров JS: {{ workerStore.computeWorkerStats.jsCount }}</p>
           <p>Воркеров Rust: {{ workerStore.computeWorkerStats.rustCount }}</p>
+          <p>Воркеров Go: {{ workerStore.computeWorkerStats.goCount }}</p>
+          <p>Воркеров TinyGo: {{ workerStore.computeWorkerStats.tinygoCount }}</p>
           <p>Свободных воркеров: {{ workerStore.computeWorkerStats.free }}</p>
           <p>Занятых воркеров: {{ workerStore.computeWorkerStats.busy }}</p>
           <p>Задачи в очереди: {{ workerStore.computeWorkerStats.activeTasks }}</p>
@@ -169,6 +181,8 @@
           <q-input v-model.number="workerConfig.http" label="HTTP воркеры" type="number" min="1" />
           <q-input v-model.number="workerConfig.js" label="JS Compute воркеры" type="number" min="1" />
           <q-input v-model.number="workerConfig.rust" label="Rust Compute воркеры" type="number" min="1" />
+          <q-input v-model.number="workerConfig.go" label="Go Compute воркеры" type="number" min="1" />
+          <q-input v-model.number="workerConfig.tinygo" label="TinyGo Compute воркеры" type="number" min="1" />
         </q-card-section>
         <q-card-actions>
           <q-btn label="Сохранить" @click="saveWorkerConfig" color="primary" v-close-popup />
@@ -202,7 +216,7 @@ const httpWorkerType = ref('http');
 const computeTaskType = ref('factorial');
 const computeFilter = ref('all');
 const httpFilter = ref('all');
-const workerConfig = ref({ http: 3, js: 2, rust: 2 });
+const workerConfig = ref({ http: 3, js: 2, rust: 2, go: 2, tinygo: 2 });
 
 const httpResults = computed(() => {
   let results = workerStore.httpResults;

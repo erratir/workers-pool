@@ -1,13 +1,17 @@
 import { acceptHMRUpdate, defineStore } from 'pinia';
 import { WorkerPoolManager } from 'src/workers/workerManager.js';
 import HttpWorker from 'src/workers/httpWorker.js?worker';
-import ComputeWorker from 'src/workers/computeWorker.js?worker';
+import ComputeWorker from 'src/workers/jsComputeWorker.js?worker';
 import RustComputeWorker from 'src/workers/rustComputeWorker.js?worker';
+import GoComputeWorker from 'src/workers/goComputeWorker.js?worker';
+import TinyGoComputeWorker from 'src/workers/tinygoComputeWorker.js?worker';
 
 const workerConfig = [
   { type: 'http', workerClass: HttpWorker, workerType: 'http', maxWorkers: 3 },
   { type: 'compute', workerClass: ComputeWorker, workerType: 'js', maxWorkers: 2 },
   { type: 'compute', workerClass: RustComputeWorker, workerType: 'rust', maxWorkers: 2 },
+  { type: 'compute', workerClass: GoComputeWorker, workerType: 'go', maxWorkers: 2 },
+  { type: 'compute', workerClass: TinyGoComputeWorker, workerType: 'tinygo', maxWorkers: 2 },
 ];
 
 export const useWorkerStore = defineStore('worker', {
@@ -35,12 +39,16 @@ export const useWorkerStore = defineStore('worker', {
         activeTasks: this.manager.taskQueues.compute.length,
         jsCount: this.manager.pools.compute.filter(w => w.workerType === 'js').length,
         rustCount: this.manager.pools.compute.filter(w => w.workerType === 'rust').length,
+        goCount: this.manager.pools.compute.filter(w => w.workerType === 'go').length,
+        tinygoCount: this.manager.pools.compute.filter(w => w.workerType === 'tinygo').length,
       };
     },
     computeMetrics() {
       const metrics = {
         js: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
         rust: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
+        go: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
+        tinygo: { factorial: { avgTime: 0, count: 0 }, fibonacci: { avgTime: 0, count: 0 } },
       };
       this.computeResults.forEach(result => {
         if (result.status === 'success') {
@@ -126,6 +134,8 @@ export const useWorkerStore = defineStore('worker', {
         http: Math.max(1, config.http),
         js: Math.max(1, config.js),
         rust: Math.max(1, config.rust),
+        go: Math.max(1, config.go),
+        tinygo: Math.max(1, config.tinygo),
       };
 
       // Warn if worker counts are excessive
@@ -143,6 +153,8 @@ export const useWorkerStore = defineStore('worker', {
         { type: 'http', workerClass: HttpWorker, workerType: 'http', maxWorkers: validatedConfig.http },
         { type: 'compute', workerClass: ComputeWorker, workerType: 'js', maxWorkers: validatedConfig.js },
         { type: 'compute', workerClass: RustComputeWorker, workerType: 'rust', maxWorkers: validatedConfig.rust },
+        { type: 'compute', workerClass: GoComputeWorker, workerType: 'go', maxWorkers: validatedConfig.go },
+        { type: 'compute', workerClass: TinyGoComputeWorker, workerType: 'tinygo', maxWorkers: validatedConfig.tinygo },
       ];
       this.manager = new WorkerPoolManager(this);
       this.initPools();

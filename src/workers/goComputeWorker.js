@@ -1,11 +1,12 @@
-import init, { factorial, fibonacci } from './wasm/rust/factorial_wasm.js';
+import './wasm/golang/wasm_exec_go.js'; // Import Go runtime
+import { init, factorial, fibonacci } from './wasm/golang/factorial_go_wasm.js';
 
 self.onmessage = async function(e) {
   const { id, type, taskName, payload } = e.data;
-  console.log(`[Worker(compute:rust)] Received message #${id}`);
+  console.log(`[Worker(compute:go)] Received message #${id}`);
 
   try {
-    await init();
+    await init('go');
     const startTime = performance.now();
     let result;
     if (taskName === 'factorial') {
@@ -24,7 +25,7 @@ self.onmessage = async function(e) {
         type,
         id,
         taskName,
-        workerType: 'rust',
+        workerType: 'go',
         time: endTime - startTime
       }
     });
@@ -32,7 +33,7 @@ self.onmessage = async function(e) {
     self.postMessage({
       status: 'error',
       error: error.message,
-      meta: { type, id, taskName, workerType: 'rust' }
+      meta: { type, id, taskName, workerType: 'go' }
     });
   }
 };

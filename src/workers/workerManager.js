@@ -34,7 +34,7 @@ export class WorkerPoolManager {
 
   addTask(task) {
     if (task.workerType === 'all') {
-      const workerTypes = task.type === 'compute' ? ['js', 'rust'] : ['http'];
+      const workerTypes = task.type === 'compute' ? ['js', 'rust', 'go', 'tinygo'] : ['http'];
       workerTypes.forEach(workerType => {
         this.taskQueues[task.type].push({ ...task, workerType, id: `${task.id}-${workerType}` });
       });

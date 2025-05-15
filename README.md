@@ -1,179 +1,144 @@
 # Workers Pool
 
-## Описание проекта
+## Project Overview
 
-**Workers Pool** — это веб-приложение, разработанное с использованием фреймворка **Quasar** (на базе Vue.js), сборщика **Vite** и менеджера состояний **Pinia**. Проект демонстрирует использование **Web Workers** для выполнения асинхронных задач в пуле воркеров с очередью задач. В приложении реализованы два типа воркеров:
+**Workers Pool** is a web application built with **Quasar** (Vue.js), **Vite**, and **Pinia**, showcasing the use of **Web Workers** for asynchronous task execution in a worker pool with task queuing. The application supports two types of workers:
 
-1. **HTTP-воркер**: выполняет HTTP-запросы (GET/POST) к сторонним API с поддержкой базовой аутентификации.
-2. **Compute-воркер**: выполняет вычисления (факториал и числа Фибоначчи) в двух реализациях:
-   - **JS**: на JavaScript.
-   - **Rust**: с использованием WebAssembly, скомпилированного из Rust, для высокой производительности.
+1. **HTTP Worker**: Performs HTTP requests (GET/POST) to external APIs with basic authentication.
+2. **Compute Worker**: Executes computational tasks (factorial and Fibonacci) in multiple implementations:
+   - **JavaScript**: Native JS implementation.
+   - **Rust**: WebAssembly compiled from Rust for high performance.
+   - **Go**: WebAssembly compiled from Go.
+   - **TinyGo**: WebAssembly compiled from TinyGo for lightweight execution.
 
-Проект демонстрирует управление пулом воркеров, обработку очередей задач, сравнение производительности вычислений на JavaScript и WebAssembly, а также предоставляет интерфейс для настройки воркеров и анализа метрик производительности.
+The project provides a user interface to configure workers, execute tasks, view results, and analyze performance metrics for different worker types.
 
-## Технологический стек
+## Technology Stack
 
-- **Quasar Framework** — для создания пользовательского интерфейса на основе Vue.js.
-- **Vite** — для быстрой сборки и разработки.
-- **Pinia** — для управления состоянием приложения.
-- **Web Workers** — для выполнения асинхронных задач в отдельных потоках.
-- **WebAssembly (Rust)** — для высокопроизводительных вычислений.
-- **Rust + wasm-pack** — для компиляции Rust-кода в WebAssembly.
+- **Quasar Framework**: Vue.js-based UI framework.
+- **Vite**: Fast build tool and development server.
+- **Pinia**: State management library.
+- **Web Workers**: For asynchronous task execution in separate threads.
+- **WebAssembly**: Rust, Go, and TinyGo for high-performance computations.
+- **Rust + wasm-pack**: For compiling Rust to WebAssembly.
+- **Go/TinyGo**: For compiling Go-based WebAssembly modules.
 
-## Установка и запуск
+## Installation and Setup
 
-### Требования
+### Prerequisites
 
-- **Node.js** (версия 16 или выше)
-- **Rust** и **wasm-pack** (для компиляции WebAssembly-модуля)
-- **NPM** или **Yarn** для управления зависимостями
+- **Node.js** (v16 or higher)
+- **Rust** and **wasm-pack** (for Rust WebAssembly compilation)
+- **Go** and **TinyGo** (for Go/TinyGo WebAssembly compilation)
+- **NPM** or **Yarn** for dependency management
 
-### Установка зависимостей
+### Installation
 
-1. Склонируйте репозиторий:
+1. Clone the repository:
    ```bash
-   git clone <URL_репозитория>
+   git clone <repository_url>
    cd workers-pool
    ```
 
-2. Установите зависимости проекта:
+2. Install project dependencies:
    ```bash
    npm install
    ```
 
-Пункты 3-7 не обязательны и требуются для компиляции кода Rust. В проект добавлен уже скомпилированный WASM-модуль.
+*Note*: Pre-compiled WebAssembly modules are included, so Rust, Go, or TinyGo compilation is optional unless modifying WASM code.
 
-3. Установите Rust и wasm-pack (если еще не установлены):
+### Optional: Compiling WebAssembly Modules
+
+#### Rust
+1. Install Rust and wasm-pack:
    ```bash
    curl https://sh.rustup.rs -sSf | sh
    rustup target add wasm32-unknown-unknown
    cargo install wasm-pack
    ```
-
-4. Создайте Rust Library:
+2. Build the Rust WASM module:
    ```bash
-   cargo new factorial-wasm --lib
-   cd factorial-wasm
-   ```
-
-5. Обновите `Cargo.toml`, включив зависимости для обработки больших чисел:
-   ```toml
-   [package]
-   name = "factorial-wasm"
-   version = "0.1.0"
-   edition = "2021"
-
-   [lib]
-   crate-type = ["cdylib"]
-
-   [dependencies]
-   wasm-bindgen = "0.2"
-   num-bigint = "0.4"
-   num-traits = "0.2"
-   ```
-
-6. Напишите код Rust в `src/lib.rs` для вычисления факториала и чисел Фибоначчи:
-   ```rust
-   use num_bigint::BigUint;
-   use num_traits::{One, Zero};
-   use wasm_bindgen::prelude::*;
-
-   #[wasm_bindgen]
-   pub fn factorial(n: u32) -> String {
-       let mut result = BigUint::one();
-       for i in 1..=n {
-           result *= BigUint::from(i);
-       }
-       result.to_string()
-   }
-
-   #[wasm_bindgen]
-   pub fn fibonacci(n: u32) -> String {
-       if n == 0 {
-           return BigUint::zero().to_string();
-       }
-       let mut a = BigUint::zero();
-       let mut b = BigUint::one();
-       for _ in 0..n {
-           (a, b) = (b.clone(), a + b);
-       }
-       a.to_string()
-   }
-   ```
-
-7. Скомпилируйте WebAssembly-модуль:
-   ```bash
-   cd factorial-wasm
+   cd factorial-rust-wasm
    wasm-pack build --target web
    ```
-   Скопируйте файлы `pkg/factorial_wasm.js` и `pkg/factorial_wasm_bg.wasm` в папку `src/workers/wasm/` вашего проекта.
+3. Copy `pkg/factorial_wasm.js` and `pkg/factorial_wasm_bg.wasm` to `src/workers/wasm/rust/`.
 
-### Запуск проекта
+#### Go/TinyGo
+1. Install Go and TinyGo:
+   - Go: Follow [official instructions](https://go.dev/doc/install).
+   - TinyGo: Follow [TinyGo installation](https://tinygo.org/getting-started/install/).
+2. Build Go or TinyGo WASM module:
+   ```bash
+   cd factorial-go-wasm
+   make wasm_exec_go.js       # Download  wasm_exec_go   
+   make build                 # For Go
+   #
+   make wasm_exec_tinygo.js   # Download  wasm_exec_tinygo
+   make build-tinygo          # For TinyGo
+   ```
+3. The Makefile copies the output to `src/workers/wasm/golang/`.
 
-1. Запустите приложение в режиме разработки:
+### Running the Application
+
+1. Start the development server:
    ```bash
    npm run dev
    ```
-   или, если используете Quasar CLI:
+   or with Quasar CLI:
    ```bash
    quasar dev
    ```
 
-2. Откройте приложение в браузере по адресу `http://localhost:9000` (порт может варьироваться).
+2. Open the application at `http://localhost:9000` (port may vary).
 
-## Использование
+## Usage
 
-Приложение предоставляет три вкладки для взаимодействия с воркерами:
+The application features three tabs for interacting with workers:
 
 1. **HTTP**:
-   - Введите IP/URL, порт, имя пользователя и пароль для выполнения HTTP-запроса.
-   - Выберите метод (GET или POST). Для POST-запросов можно указать JSON-тело.
-   - Выберите тип воркера (`http` или `all`).
-   - Нажмите «Отправить запрос» для выполнения запроса.
-   - Результаты отображаются с возможностью фильтрации по типу воркера и очистки.
+   - Input IP/URL, port, username, and password for HTTP requests.
+   - Select method (GET/POST) and optionally provide JSON body for POST.
+   - Choose worker type (`http` or `all`).
+   - Click "Send Request" to execute and view results, with filtering and clearing options.
 
 2. **Compute**:
-   - Введите число для вычисления (например, 1000).
-   - Выберите тип задачи (`factorial` или `fibonacci`).
-   - Выберите тип воркера (`js`, `rust`, или `all`).
-   - Нажмите «Выполнить вычисление» для запуска задачи.
-   - Результаты включают значение, тип воркера, время выполнения и возможность фильтрации.
+   - Enter a number for computation (e.g., 1000).
+   - Select task type (`factorial` or `fibonacci`) and worker type (`js`, `rust`, `go`, `tinygo`, or `all`).
+   - Click "Run Computation" to execute and view results, including execution time and filtering options.
 
 3. **Dashboard**:
-   - Отображает метрики производительности: среднее время выполнения для каждого типа воркера и задачи.
-   - Показывает количество выполненных задач.
+   - Displays performance metrics: average execution time and task count for each worker type and task.
+   - Shows HTTP request performance metrics.
 
-### Настройки воркеров
+### Worker Configuration
 
-- Нажмите кнопку «Настройки воркеров» для изменения количества воркеров для каждого типа (`http`, `js`, `rust`).
-- Минимальное количество воркеров — 1. Попытки установить 0 или отрицательное значение будут скорректированы с уведомлением.
-- Если указано более 10 воркеров для одного типа, в консоли появится предупреждение о возможном влиянии на производительность браузера.
-- После изменения нажмите «Сохранить» для применения новой конфигурации.
+- Click "Worker Settings" to adjust the number of workers for each type (`http`, `js`, `rust`, `go`, `tinygo`).
+- Minimum worker count is 1; values below this are adjusted with a warning.
+- Setting more than 10 workers per type triggers a performance warning in the console.
+- Save changes to apply the new configuration.
 
-### Подробности воркеров
+### Worker Details
 
-- В диалоге «Подробности HTTP-воркера» отображается общее количество, свободные и занятые воркеры, а также задачи в очереди.
-- В диалоге «Подробности Compute-воркера» дополнительно показывается количество воркеров JS и Rust для большей прозрачности.
+- **HTTP Worker Details**: Shows total, free, busy workers, and queued tasks.
+- **Compute Worker Details**: Includes counts for JS, Rust, Go, and TinyGo workers, plus total, free, busy, and queued tasks.
 
-## Структура проекта
+## Project Structure
 
-- `src/pages/IndexPage.vue`: Основной компонент с пользовательским интерфейсом, содержащий вкладки и формы для взаимодействия с воркерами.
-- `src/stores/workerStore.js`: Pinia-магазин для управления состоянием воркеров, результатов, конфигурации и метрик.
+- `src/pages/IndexPage.vue`: Main UI component with tabs and forms for worker interaction.
+- `src/stores/workerStore.js`: Pinia store for managing worker state, results, and metrics.
 - `src/workers/`:
-   - `httpWorker.js`: Web Worker для HTTP-запросов.
-   - `computeWorker.js`: Web Worker для вычислений на JavaScript.
-   - `rustComputeWorker.js`: Web Worker для вычислений с использованием WebAssembly.
-   - `workerManager.js`: Класс для управления пулом воркеров и очередями задач.
-   - `wasm/`: Папка со скомпилированными файлами WebAssembly (`factorial_wasm.js`, `factorial_wasm_bg.wasm`).
-- `factorial-wasm/`: Отдельный Rust-проект для компиляции WebAssembly-модуля.
-- `README.md`: Документация проекта.
+   - `httpWorker.js`: HTTP request worker.
+   - `jsComputeWorker.js`: JavaScript compute worker.
+   - `rustComputeWorker.js`, `goComputeWorker.js`, `tinygoComputeWorker.js`: WebAssembly compute workers.
+   - `workerManager.js`: Manages worker pools and task queues.
+   - `wasm/`: Contains compiled WebAssembly modules for Rust, Go, and TinyGo.
+- `factorial-rust-wasm/`: Rust project for WebAssembly compilation.
+- `factorial-go-wasm/`: Go/TinyGo project for WebAssembly compilation.
+- `README.md`: Project documentation.
 
-## Примечания
+## Notes
 
-- **Производительность**: Rust Compute-воркер (WASM) обычно быстрее JS Compute-воркера для больших чисел благодаря оптимизациям Rust. Метрики производительности доступны во вкладке Dashboard.
-- **Ограничения**: HTTP-воркер требует корректных учетных данных и API, поддерживающего CORS для браузерных запросов.
-- **Расширяемость**: Новые типы воркеров или задачи можно добавить, обновив `workerConfig` в `workerStore.js` и соответствующие файлы воркеров.
+- **Performance**: Rust and Go/TinyGo WebAssembly workers typically outperform JavaScript for large computations, as shown in the Dashboard metrics.
+- **Limitations**: HTTP workers require valid credentials and CORS-enabled APIs for browser requests.
+- **Extensibility**: Add new worker types or tasks by updating `workerConfig` in `workerStore.js` and creating corresponding worker files.
 
-## Лицензия
-
-Проект распространяется под лицензией MIT. См. файл `LICENSE` для подробностей.
