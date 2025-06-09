@@ -241,7 +241,7 @@ function runCompute() {
   activeTab.value = 'compute';
 }
 
-function sendRequest() {
+async function sendRequest() {
   if (!ip.value || !port.value || !username.value || !password.value) {
     $q.notify({
       type: 'negative',
@@ -260,17 +260,21 @@ function sendRequest() {
     body: httpMethod.value === 'POST' ? (postBody.value ? JSON.parse(postBody.value) : null) : null,
   };
   try {
-    workerStore.sendHttpTask(task, httpWorkerType.value, 'httpRequest');
+    const result = await workerStore.sendHttpTaskAsync(task, httpWorkerType.value, 'httpRequest', false);
+    console.log('HTTP Task Result:', result);
+    $q.notify({
+      type: 'positive',
+      message: 'Запрос успешно выполнен!',
+    });
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Ошибка в теле POST-запроса: ${error.message}`,
+      message: `Ошибка: ${error.message}`,
     });
+  } finally {
     loading.value = false;
-    return;
+    activeTab.value = 'http';
   }
-  loading.value = false;
-  activeTab.value = 'http';
 }
 
 function saveWorkerConfig() {

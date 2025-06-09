@@ -20,6 +20,7 @@ export const useWorkerStore = defineStore('worker', {
     httpResults: [],
     computeResults: [],
     workerConfig,
+    pendingTasks: new Map(), // Map to track async tasks: taskId -> { resolve, reject, deleteResult }
   }),
 
   getters: {
@@ -97,11 +98,11 @@ export const useWorkerStore = defineStore('worker', {
       }
     },
 
-    sendHttpTask(task, workerType, taskName) {
+    sendHttpTask(task, workerType, taskName, id = Date.now().toString()) {
       const plainTask = { ...task };
       try {
         this.manager.addTask({
-          id: Date.now().toString(),
+          id,
           type: 'http',
           workerType: workerType,
           taskName: taskName,
@@ -110,6 +111,15 @@ export const useWorkerStore = defineStore('worker', {
       } catch (error) {
         console.error('Error adding task:', error);
       }
+    },
+
+    async sendHttpTaskAsync(task, workerType, taskName, deleteResult = false) {
+      const taskId = task.id || Date.now().toString() + Math.random().toString(36).substr(2, 9); // Unique ID
+      const promise = new Promise((resolve, reject) => {
+        this.pendingTasks.set(taskId, { resolve, reject, deleteResult });
+      });
+      this.sendHttpTask(task, workerType, taskName, taskId);
+      return promise;
     },
 
     addResult(result) {

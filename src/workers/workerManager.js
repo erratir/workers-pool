@@ -77,7 +77,21 @@ export class WorkerPoolManager {
     const result = event.data;
     console.log(`[Worker manager] Response from ${type}:`, result);
 
-    this.store.addResult(result);
+    const taskId = result.meta.id;
+    if (this.store.pendingTasks.has(taskId)) {
+      const { resolve, reject, deleteResult } = this.store.pendingTasks.get(taskId);
+      if (result.status === 'success') {
+        resolve(result);
+        if (!deleteResult) {
+          this.store.addResult(result);
+        }
+      } else {
+        reject(new Error(result.error));
+      }
+      this.store.pendingTasks.delete(taskId);
+    } else {
+      this.store.addResult(result);
+    }
     this.processQueue(type);
   }
 
